@@ -5,10 +5,14 @@ import { createProtocol } from "vue-cli-plugin-electron-builder/lib";
 import { api } from "./api";
 import { WebcastPushConnection } from 'tiktok-live-connector';
 import { PosPrinter } from "electron-pos-printer";
+console.log(".......................");
+console.log("BACKGROUND");
+ipcMain.setMaxListeners(0);
 const fs = require('fs');
 const client = require('https');
+let win = null;
 //USERNAME
-const tiktokUsername = "evemasmr";
+const tiktokUsername = "estrellazu1";
 const PRINT_MESSAGES = true;
 const PRINT_DONATIONS = true;
 const PRINT_SOCIAL = true;
@@ -32,7 +36,7 @@ function addToQueue(user, lastComment) {
     let userInQueue = queue.find(x => x.user === user);
     if (!userInQueue) {
         queue.push({ user: user, quantity: 1, lastComment: lastComment });
-    
+
     } else {
         //increase quantity of user in queue
         queue.find(x => x.user === user).quantity++;
@@ -42,17 +46,17 @@ function addToQueue(user, lastComment) {
 
 //check if users in queue are ready to print and if so print them
 function checkQueue() {
-    console.log(".......................");
-    console.log("CHECKING QUEUE");    
-    console.log(".......................");
+    // console.log(".......................");
+    // console.log("CHECKING QUEUE");
+    // console.log(".......................");
     //print the queue users
-    for (let i = 0; i < queue.length; i++) {
-        
-            console.log("Printing user: " + queue[i].user + " with quantity: " + queue[i].quantity + " and last comment: " + queue[i].lastComment);
-          
-    }
-    
-    console.log(".......................");
+    // for (let i = 0; i < queue.length; i++) {
+
+    //         console.log("Printing user: " + queue[i].user + " with quantity: " + queue[i].quantity + " and last comment: " + queue[i].lastComment);
+
+    // }
+
+    // console.log(".......................");
     if (queuePrinting) {
         return;
     }
@@ -63,7 +67,7 @@ function checkQueue() {
     queue = queue.filter(x => x.quantity < COMMENTS_QUANTITY_TO_PRINT);
     //print users
     usersToPrint.forEach(user => {
-        console.log("PRINTING COMMENT: " + user.user);
+        // console.log("PRINTING COMMENT: " + user.user);
         const message = [
             {
                 type: "text",
@@ -84,8 +88,8 @@ function checkQueue() {
     });
     queuePrinting = false;
 
-    
-} 
+
+}
 
 //add users to a queue for printing after reach 5 donations and then remove them from the queue
 let queueDonations = [];
@@ -107,24 +111,26 @@ function addToDonationQueue(user, lastDonation, image) {
 
 //check if users in queue are ready to print and if so print them
 function checkDonationQueue() {
-    console.log(".......................");
-    console.log("CHECKING DONATION QUEUE");
-    console.log(".......................");
+    // console.log(".......................");
+    // console.log("CHECKING DONATION QUEUE");
+    // console.log(".......................");
     //print the queue users
-    for (let i = 0; i < queueDonations.length; i++) {
-        console.log("Printing user: " + queueDonations[i].user + " with quantity: " + queueDonations[i].quantity + " and last donation: " + queueDonations[i].lastDonation);
-    }
-    console.log(".......................");
+    // for (let i = 0; i < queueDonations.length; i++) {
+    //     console.log("Printing user: " + queueDonations[i].user + " with quantity: " + queueDonations[i].quantity + " and last donation: " + queueDonations[i].lastDonation);
+    // }
+    // console.log(".......................");
     if (queuePrinting) {
         return;
     }
     queuePrinting = true;
+  
     //check for users in queue with quantity greater than or equal to 5
     let usersToPrint = queueDonations.filter(x => x.quantity >= DONATIONS_QUANTITY_TO_PRINT);
     //remove users from queue
     queueDonations = queueDonations.filter(x => x.quantity < DONATIONS_QUANTITY_TO_PRINT);
     //print users
     usersToPrint.forEach(user => {
+        NotifyRenderProcess('gift',user);
         console.log("PRINTING DONATION: " + user.user);
         const message = [
             {
@@ -168,111 +174,114 @@ function checkDonationQueue() {
 
 
 app.on("ready", async () => {
+    // console.log(".......................");
+    // console.log("READY");
     //SETUP PRINTER
-   
-
-    // Create a new wrapper object and pass the username
-    let tiktokChatConnection = new WebcastPushConnection(tiktokUsername);
-
-    // Connect to the chat (await can be used as well)
-    tiktokChatConnection.connect().then(state => {
-        console.info(`Connected to roomId ${state.roomId}`);
-    }).catch(err => {
-        console.error('Failed to connect', err);
-    })
-
-    // Define the events that you want to handle
-    // In this case we listen to chat messages (comments)
-    tiktokChatConnection.on('chat', async data => {
-        console.log("MESSAGE ENABLED: " + PRINT_MESSAGES);
-        console.log(data.nickname + ": " + data.comment);
-        console.log("---------------------------");
-        
-        // const message = [
-        //     {
-        //         type: "text",
-        //         value: data.nickname + ": " + data.comment,
-        //     }, {
-        //         type: "text",
-        //         value: "---------------------------",
-        //         style: `text-align:center;`,
-
-        //     },
-        // ];
-
-        if (PRINT_MESSAGES) {
-            //add user to queue
-            addToQueue(data.nickname, data.comment);
-            //check queue
-            checkQueue();
-            // PosPrinter.print(message, options)
-            //     .then((response) => {
-            //         console.log(response);
-            //     })
-            //     .catch((error) => {
-            //         console.log(error);
-            //     });
-        }
-    })
-
-    // And here we receive gifts sent to the streamer
-    tiktokChatConnection.on('gift', async data => {
-        console.log("GIFT ENABLED: " + PRINT_DONATIONS);
-        console.log(data.nickname + ": " + data.describe);
-        console.log("---------------------------");
-        var extension = data.profilePictureUrl.split('.').pop().split('?')[0];
-
-        await downloadImage(data.profilePictureUrl, './src/images/' + data.uniqueId + '.' + extension);
-
-        let logo =
-            './src/images/' + data.uniqueId + '.' + extension;
-        
-        if (PRINT_DONATIONS) {
-             addToDonationQueue(data.nickname, data.describe, logo);
-            //check queue
-            checkDonationQueue();
-            // PosPrinter.print(message, options)
-            //     .then((response) => {
-            //         console.log(response);
-            //     })
-            //     .catch((error) => {
-            //         console.log(error);
-            //     });
-        }
-    })
-
-    tiktokChatConnection.on('social', data => {
-        console.log("SOCIAL ENABLED: " + PRINT_SOCIAL);
-        console.log(data.nickname + ": " + data.label);
-        console.log("---------------------------");
-        var extension = data.profilePictureUrl.split('.').pop().split('?')[0];
-
-        downloadImage(data.profilePictureUrl, './src/images/' + data.uniqueId + '.' + extension);
-    
-        const message = [          
-
-            {
-                type: "text",
-                value: data.nickname + ": " + "Te ha seguido",
-            }, {
-                type: "text",
-                value: "---------------------------",
-                style: `text-align:center;`,
-
-            },
-        ];
-        if (PRINT_SOCIAL && data.label.includes("followed")) {
-            
-            PosPrinter.print(message, options)
-                .then((response) => {
-                    console.log(response);
-                })
-                .catch((error) => {
-                    console.log(error);
-                });
-        }
-    })
     createWindow();
+    console.log("READY");
+    // Create a new wrapper object and pass the username
+    // let tiktokChatConnection = new WebcastPushConnection(tiktokUsername);
+
+    // // Connect to the chat (await can be used as well)
+    // tiktokChatConnection.connect().then(state => {
+    //     console.info(`Connected to roomId ${state.roomId}`);
+    // }).catch(err => {
+    //     console.error('Failed to connect', err);
+    // })
+
+    // // Define the events that you want to handle
+    // // In this case we listen to chat messages (comments)
+    // tiktokChatConnection.on('chat', async data => {
+    //     // console.log("MESSAGE ENABLED: " + PRINT_MESSAGES);
+    //     // console.log(data.nickname + ": " + data.comment);
+    //     // console.log("---------------------------");
+        
+    //     // const message = [
+    //     //     {
+    //     //         type: "text",
+    //     //         value: data.nickname + ": " + data.comment,
+    //     //     }, {
+    //     //         type: "text",
+    //     //         value: "---------------------------",
+    //     //         style: `text-align:center;`,
+
+    //     //     },
+    //     // ];
+
+    //     if (PRINT_MESSAGES) {
+    //         //add user to queue
+    //         addToQueue(data.nickname, data.comment);
+    //         //check queue
+    //         checkQueue();
+    //         // PosPrinter.print(message, options)
+    //         //     .then((response) => {
+    //         //         console.log(response);
+    //         //     })
+    //         //     .catch((error) => {
+    //         //         console.log(error);
+    //         //     });
+    //     }
+    // })
+
+    // // And here we receive gifts sent to the streamer
+    // tiktokChatConnection.on('gift', async data => {
+       
+    //     // console.log("GIFT ENABLED: " + PRINT_DONATIONS);
+    //     // console.log(data.nickname + ": " + data.describe);
+    //     // console.log("---------------------------");
+    //     var extension = data.profilePictureUrl.split('.').pop().split('?')[0];
+
+    //     await downloadImage(data.profilePictureUrl, './src/images/' + data.uniqueId + '.' + extension);
+
+    //     let logo =
+    //         './src/images/' + data.uniqueId + '.' + extension;
+
+    //     if (PRINT_DONATIONS) {
+    //          addToDonationQueue(data.nickname, data.describe, data.profilePictureUrl);
+    //         //check queue
+    //         checkDonationQueue();
+    //         // PosPrinter.print(message, options)
+    //         //     .then((response) => {
+    //         //         console.log(response);
+    //         //     })
+    //         //     .catch((error) => {
+    //         //         console.log(error);
+    //         //     });
+    //     }
+    // })
+
+    // tiktokChatConnection.on('social', data => {
+    //     // console.log("SOCIAL ENABLED: " + PRINT_SOCIAL);
+    //     // console.log(data.nickname + ": " + data.label);
+    //     // console.log("---------------------------");
+    //     var extension = data.profilePictureUrl.split('.').pop().split('?')[0];
+
+    //     downloadImage(data.profilePictureUrl, './src/images/' + data.uniqueId + '.' + extension);
+
+    //     const message = [
+
+    //         {
+    //             type: "text",
+    //             value: data.nickname + ": " + "Te ha seguido",
+    //         }, {
+    //             type: "text",
+    //             value: "---------------------------",
+    //             style: `text-align:center;`,
+
+    //         },
+    //     ];
+    //     if (PRINT_SOCIAL && data.label.includes("followed")) {
+
+    //         PosPrinter.print(message, options)
+    //             .then((response) => {
+    //                 console.log(response);
+    //             })
+    //             .catch((error) => {
+    //                 console.log(error);
+    //             });
+    //     }
+    // })
+   
 });
 
 
@@ -306,10 +315,12 @@ async function downloadImage(url, filepath) {
 }
 
 async function createWindow() {
+    try{
     // Create the browser window.
-    const win = new BrowserWindow({
+ win= new BrowserWindow({
         width: 800,
         height: 600,
+        fullscreen: false,
         webPreferences: {
             // Use pluginOptions.nodeIntegration, leave this alone
             // See nklayman.github.io/vue-cli-plugin-electron-builder/guide/security.html#node-integration for more info
@@ -326,6 +337,41 @@ async function createWindow() {
         // Load the index.html when not in development
         win.loadURL("./index.html");
     }
+}catch(err){
+    console.log(err);
+}
 }
 
 
+
+let sending = false;
+function NotifyRenderProcess(message,payload) {
+    try{
+
+    //wait 3 seconds before sending the message
+    if (sending) {    
+        return;
+    }
+    
+    console.log("Notifying Render Process");
+    sending = true;
+  //  win.webContents.send('event', {message: message, payload: payload});
+    //wait 3 seconds before sending the message
+    setTimeout(function () {
+    sending = false;
+    }, 3000);
+    //wait 3 seconds before sending the message
+
+
+
+}
+catch(e){
+    console.log(e);
+}
+}
+
+app.on('before-quit', () => {   
+    console.log("Quitting");
+    win = null;
+        ipcMain.removeAllListeners("event");          
+  });
