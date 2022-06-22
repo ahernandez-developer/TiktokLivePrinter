@@ -114,7 +114,11 @@ export default {
     if(this.spinning)
     return;
     this.spinning=true;
+    if(this.donators.length>0){
             this.spinDonators();
+    }
+    else
+    this.spinCommentors();
             this.spinning=false;
         }, 2000);
         // Connect to the chat (await can be used as well)
@@ -133,6 +137,7 @@ export default {
 
         tiktokChatConnection.on('chat', data => {
             this.comments.push(data);
+            this.addCommentor(data);
         })
 
     },
@@ -141,6 +146,7 @@ export default {
             spinning: false,
             userWins:0,
             donators: [],
+            commenters: [],
             showComments: true,
             tiktokUsername: "marte19222",
             user: {},
@@ -180,6 +186,10 @@ export default {
         addDonator: function addDonator(donator) {
             this.donators.push(donator);
         },        
+        //add commentors to queue
+        addCommentor: function addCommentor(commentor) {
+            this.commenters.push(commentor);
+        },
         spinDonators(){
             console.log("cheking for donators");
             console.log(this.donators.length);
@@ -194,6 +204,17 @@ export default {
                 this.spin();
             }
 
+        },
+        //spinCommentor
+        spinCommentor(){
+            console.log("cheking for commentors");
+            console.log(this.commenters.length);
+            //spin first commentor in queue
+            if(this.commenters.length > 0){
+                console.log("spinning commentor" + this.commenters[0].nickname);
+                this.user = this.commenters.shift();
+                this.spin();
+            }
         },
         keydown: function keydown(e) {
             console.log(e.which);
