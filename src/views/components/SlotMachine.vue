@@ -3,8 +3,8 @@
         <div style="text-align: center; padding-top: 50px;">
             <v-row justify="center" class="text-h5">
                 CUALQUIER TIPO DE DONACION = 1 GIRO
-            </v-row>            
-        <v-divider/>
+            </v-row>
+            <v-divider />
             <v-row justify="center" class="text-h7 pt-2">
                 JUGADOR ACTUAL
             </v-row>
@@ -12,30 +12,35 @@
                 <img :src="user.profilePictureUrl" />
             </v-row>
             <v-row justify="center">
-                {{ user.nickname }}
+                @{{ user.nickname }}
 
             </v-row>
 
-            <v-row v-if="user" justify="center font-weight-bold">              
-                    PUNTOS ACUMULADOS: {{ userWins }}
+            <v-row v-if="user" justify="center">
+                PUNTOS ACUMULADOS: {{ userWins }}
             </v-row>
         </div>
-        <v-divider/>
-             <div class="text-center pt-2"> EN COLA: <span class="pt-2">{{donators.length,}}</span></div>
+        <v-divider />
+        <div class="text-center pt-2"> EN COLA: <span class="pt-2">{{ donators.length, }}</span></div>
         <div class="SlotMachine">
             <v-row class="px-8">
                 <v-col v-if="showComments" cols="12" md="3">
-                
-                    <h3 class="text-center pb-5">COMENTARIOS</h3>
+
+                    <h3 class="text-center pb-5">COLA DE GIROS</h3>
                     <v-divider class="mx-15"></v-divider>
-                    <div class="pb-2" v-for="comment in reversedComments">{{ comment.nickname }}: {{ comment.comment }}
+                    <div class="text-center pb-2" v-for="comment in spinQueue">
+                        <span v-if="comment.comment">@{{ comment.nickname }} tiene un 1 giro pendiente</span>
+                        <div v-else>
+                        <b> {{ comment.nickname }} tiene 1 giro pendiente </b>
+                            {{randomIcon()}}
+                        </div>
                     </div>
-                    
+
                 </v-col>
                 <v-col cols="12" md="3" v-else>
                     <Top :users="topWinners" />
                     <!-- <div v-for="winner in topWinners">{{ winner.nickname }}: {{ winner.win }}</div> -->
-                    
+
                 </v-col>
                 <v-col cols="12" md="9">
                     <div class="container">
@@ -109,18 +114,18 @@ export default {
             this.showComments = !this.showComments;
         }, 10000);
         let tiktokChatConnection = new WebcastPushConnection(this.tiktokUsername);
-  setInterval(() => {
-   
-    if(this.spinning)
-    return;
-    this.spinning=true;
-    if(this.donators.length>0){
-            this.spinDonators();
-    }
-    else
-    this.spinCommentors();
-            this.spinning=false;
-        }, 2000);
+        setInterval(() => {
+
+            if (this.spinning)
+                return;
+            this.spinning = true;
+            if (this.donators.length > 0) {
+                this.spinDonators();
+            }
+            else
+                this.spinCommentors();
+            this.spinning = false;
+        }, 3200);
         // Connect to the chat (await can be used as well)
         tiktokChatConnection.connect().then(state => {
             console.info(`Connected to roomId ${state.roomId}`);
@@ -130,8 +135,8 @@ export default {
 
         tiktokChatConnection.on('gift', async data => {
             this.user = data;
-           
-           this.addDonator(this.user);
+
+            this.addDonator(this.user);
         })
 
 
@@ -144,11 +149,11 @@ export default {
     data: function data() {
         return {
             spinning: false,
-            userWins:0,
+            userWins: 0,
             donators: [],
             commenters: [],
             showComments: true,
-            tiktokUsername: "marte19222",
+            tiktokUsername: "arielcito04",
             user: {},
             comments: [],
             winners: [],
@@ -174,6 +179,10 @@ export default {
         reversedComments: function comments() {
             return this.comments.reverse().slice(0, 10);
         },
+        //merge donators and commenters
+        spinQueue: function spinQueue() {
+            return this.donators.concat(this.commenters).slice(0, 10);
+        },
         //sort winners by win and take the first 10
         topWinners: function winners() {
             return this.winners.sort((a, b) => b.win - a.win).slice(0, 10);
@@ -182,35 +191,45 @@ export default {
 
     },
     methods: {
+        //random unicode icon
+        randomIcon: function randomIcon() {
+            let icons = [
+                '👑',
+                '💰',
+                '💎',
+                '🤑'
+            ]
+            return icons[Math.floor(Math.random() * icons.length)];
+        },
         //add donators to queue
         addDonator: function addDonator(donator) {
             this.donators.push(donator);
-        },        
+        },
         //add commentors to queue
         addCommentor: function addCommentor(commentor) {
             this.commenters.push(commentor);
         },
-        spinDonators(){
+        spinDonators() {
             console.log("cheking for donators");
             console.log(this.donators.length);
             //spin first donator in queue
-            if(this.donators.length > 0){
+            if (this.donators.length > 0) {
                 console.log("spinning donator" + this.donators[0].nickname);
                 this.user = this.donators.shift();
-                 if(this.winners.find(x => x.nickname === this.user.nickname))
-              this.userWins = this.winners.find(x => x.nickname === this.user.nickname).win;
-              else
-              this.userWins = 0;
+                if (this.winners.find(x => x.nickname === this.user.nickname))
+                    this.userWins = this.winners.find(x => x.nickname === this.user.nickname).win;
+                else
+                    this.userWins = 0;
                 this.spin();
             }
 
         },
         //spinCommentor
-        spinCommentor(){
+        spinCommentors() {
             console.log("cheking for commentors");
             console.log(this.commenters.length);
             //spin first commentor in queue
-            if(this.commenters.length > 0){
+            if (this.commenters.length > 0) {
                 console.log("spinning commentor" + this.commenters[0].nickname);
                 this.user = this.commenters.shift();
                 this.spin();
@@ -274,13 +293,13 @@ export default {
                             nickname: this.user.nickname,
                             win: this.win
                         });
-                       
+
                     }
                     else {
                         this.winners.find(x => x.nickname === this.user.nickname).win += this.win;
-                  
+
                     }
-                    this.showComments =false;
+                    this.showComments = false;
                     this.takeWin();
                 }
                 if (this.waslocked) {
